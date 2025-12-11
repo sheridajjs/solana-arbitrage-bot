@@ -14,10 +14,11 @@ This document describes the migration from Jupiter V4 SDK (`@jup-ag/core`) to Ju
 - **After**: Defined local constants for token list URLs:
   ```javascript
   const TOKEN_LIST_URL = {
-    'mainnet-beta': 'https://token.jup.ag/strict',
-    'devnet': 'https://token.jup.ag/devnet-strict'
+    'mainnet-beta': 'https://tokens.jup.ag/tokens?tags=verified',
+    'devnet': 'https://tokens.jup.ag/tokens?tags=verified'
   };
   ```
+- **Note**: Updated to use the correct Jupiter V6 token list endpoints with `tokens.jup.ag` domain.
 
 ### 3. Jupiter Initialization (src/bot/setup.js)
 - **Before**: Used `Jupiter.load()` with extensive configuration options
