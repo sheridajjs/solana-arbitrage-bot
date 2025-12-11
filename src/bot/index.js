@@ -3,14 +3,12 @@ console.clear();
 require("dotenv").config();
 const { clearInterval } = require("timers");
 const { PublicKey } = require("@solana/web3.js");
-const JSBI = require('jsbi');
 const { setTimeout } = require("timers/promises");
 const {
 	calculateProfit,
 	toDecimal,
 	toNumber,
 	updateIterationsPerMin,
-	checkRoutesResponse,
 	checkArbReady,
 } = require("../utils");
 const { handleExit, logExit } = require("./exit");
@@ -144,6 +142,7 @@ const pingpongStrategy = async (jupiter, tokenA, tokenB) => {
 			}
 			if (cache.hotkeys.r) {
 				console.log("[R] PRESSED - REVERT BACK SWAP!");
+				// V6 API: Setting to 0 to force swap (compatibility with V4 behavior)
 				route.otherAmountThreshold = 0;
 			}
 
@@ -351,6 +350,7 @@ const arbitrageStrategy = async (jupiter, tokenA) => {
 			}
 			if (cache.hotkeys.r) {
 				console.log("[R] PRESSED - REVERT BACK SWAP!");
+				// V6 API: Setting to 0 to force swap (compatibility with V4 behavior)
 				route.otherAmountThreshold = 0;
 			}
 
