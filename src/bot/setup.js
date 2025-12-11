@@ -134,6 +134,7 @@ const balanceCheck = async (checkToken) => {
 			checkBalance = Number(balance);
 		} catch (error) {
 			console.error('Error fetching native SOL balance:', error);
+			checkBalance = Number(0);
 		}
 	} else {
 		// Normal token so look up the ATA balance(s)
@@ -152,7 +153,15 @@ const balanceCheck = async (checkToken) => {
 			checkBalance = Number(totalTokenBalance);
 	
 		} catch (error) {
-			console.error('Error fetching token balance:', error);
+			// Check if the error is due to a missing/invalid mint
+			if (error.message && error.message.includes('could not find mint')) {
+				console.warn(`Warning: Token mint ${checkToken.address} does not exist or is invalid. Returning balance of 0.`);
+				checkBalance = Number(0);
+			} else {
+				// For other errors, log the full error
+				console.error('Error fetching token balance:', error);
+				checkBalance = Number(0);
+			}
 		}
 	}
 
