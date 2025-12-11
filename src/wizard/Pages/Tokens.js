@@ -7,9 +7,10 @@ const { default: SelectInput } = require("ink-select-input");
 const chalk = require("chalk");
 const { default: axios } = require("axios");
 // Jupiter V6 API uses a direct token list endpoint
+// Updated to use the correct Jupiter token list endpoints
 const TOKEN_LIST_URL = {
-	'mainnet-beta': 'https://token.jup.ag/strict',
-	'devnet': 'https://token.jup.ag/devnet-strict'
+	'mainnet-beta': 'https://tokens.jup.ag/tokens?tags=verified',
+	'devnet': 'https://tokens.jup.ag/tokens?tags=verified'
 };
 const { default: TextInput } = require("ink-text-input");
 const fs = require("fs");
@@ -90,19 +91,51 @@ function Tokens() {
 	}
 
 	useEffect(() => {
-		// check if tokens.json exist
-		if (fs.existsSync("./tokens.json")) {
-			const tokensFromFile = JSON.parse(fs.readFileSync("./config.json"));
-			tokens.tokensFromFile?.length > 0 && setTokens(tokensFromFile);
+		const fetchTokens = () => {
+			// Ensure temp directory exists
+			if (!fs.existsSync("./temp")) {
+				fs.mkdirSync("./temp", { recursive: true });
+			}
+			
+			axios.get(TOKEN_LIST_URL[network])
+				.then((res) => {
+					if (isMountedRef.current && Array.isArray(res.data)) {
+						setTokens(res.data);
+						// save tokens to tokens.json file
+						fs.writeFileSync(
+							"./temp/tokens.json",
+							JSON.stringify(res.data, null, 2)
+						);
+					}
+				})
+				.catch((error) => {
+					console.error("Error fetching tokens from Jupiter API:", error.message);
+					console.error("Please check your network connection and try again.");
+					// Set empty tokens array to avoid crashes
+					if (isMountedRef.current) {
+						setTokens([]);
+					}
+				});
+		};
+
+		// check if tokens.json exist in temp directory
+		if (fs.existsSync("./temp/tokens.json")) {
+			try {
+				const tokensFromFile = JSON.parse(fs.readFileSync("./temp/tokens.json"));
+				// Validate that tokensFromFile is an array before using it
+				if (Array.isArray(tokensFromFile) && tokensFromFile.length > 0) {
+					setTokens(tokensFromFile);
+				} else {
+					// If cache is not a valid array, fetch fresh data
+					fetchTokens();
+				}
+			} catch (error) {
+				console.error("Error reading cached tokens:", error);
+				// If cached file is corrupted, fetch fresh data
+				fetchTokens();
+			}
 		} else {
-			axios.get(TOKEN_LIST_URL[network]).then((res) => {
-				isMountedRef.current && setTokens(res.data);
-				// save tokens to tokens.json file
-				fs.writeFileSync(
-					"./temp/tokens.json",
-					JSON.stringify(res.data, null, 2)
-				);
-			});
+			fetchTokens();
 		}
 	}, []);
 
