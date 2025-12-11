@@ -9,8 +9,8 @@ const { default: axios } = require("axios");
 // Jupiter V6 API uses a direct token list endpoint
 // Updated to use the correct Jupiter token list endpoints
 const TOKEN_LIST_URL = {
-	'mainnet-beta': 'https://tokens.jup.ag/tokens?tags=verified',
-	'devnet': 'https://tokens.jup.ag/tokens?tags=verified'
+	'mainnet-beta': 'https://lite-api.jup.ag/tokens/v2/tag?query=verified',
+	
 };
 const { default: TextInput } = require("ink-text-input");
 const fs = require("fs");
