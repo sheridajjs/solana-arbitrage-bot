@@ -2,7 +2,6 @@ const ui = require("cliui")({ width: 140 });
 const chalk = require("chalk");
 const moment = require("moment");
 const chart = require("asciichart");
-const JSBI = require('jsbi');
 
 const { toDecimal } = require("../../utils");
 const package = require("../../../package.json");
@@ -253,7 +252,9 @@ function printToConsole({
 				},
 				{
 					text: `MIN. OUT: ${chalk.magentaBright(
-						toDecimal(String(route.otherAmountThreshold), outputToken.decimals)
+						route.otherAmountThreshold 
+							? toDecimal(String(route.otherAmountThreshold), outputToken.decimals)
+							: toDecimal(String(route.outAmount), outputToken.decimals)
 					)}`,
 				},
 				{
@@ -291,38 +292,38 @@ function printToConsole({
 			ui.div("CURRENT BALANCE", "LAST BALANCE", "INIT BALANCE", "PROFIT", " ");
 
 			ui.div(
-				`${chalk[JSBI.GT(cache.currentBalance.tokenA, 0) ? "yellowBright" : "gray"](
+				`${chalk[BigInt(cache.currentBalance.tokenA) > 0 ? "yellowBright" : "gray"](
 					toDecimal(cache.currentBalance.tokenA, tokenA.decimals)
 				)} ${chalk[cache.ui.defaultColor](tokenA.symbol)}`,
 
-				`${chalk[JSBI.GT(cache.lastBalance.tokenA, 0) ? "yellowBright" : "gray"](
+				`${chalk[BigInt(cache.lastBalance.tokenA) > 0 ? "yellowBright" : "gray"](
 					toDecimal(cache.lastBalance.tokenA, tokenA.decimals)
 				)} ${chalk[cache.ui.defaultColor](tokenA.symbol)}`,
 
-				`${chalk[JSBI.GT(cache.initialBalance.tokenA,0) ? "yellowBright" : "gray"](
+				`${chalk[BigInt(cache.initialBalance.tokenA) > 0 ? "yellowBright" : "gray"](
 					toDecimal(cache.initialBalance.tokenA, tokenA.decimals)
 				)} ${chalk[cache.ui.defaultColor](tokenA.symbol)}`,
 
-				`${chalk[JSBI.GT(cache.currentProfit.tokenA,0) ? "greenBright" : "redBright"](
+				`${chalk[cache.currentProfit.tokenA > 0 ? "greenBright" : "redBright"](
 					cache.currentProfit.tokenA.toFixed(2)
 				)} %`,
 				" "
 			);
 
 			ui.div(
-				`${chalk[JSBI.GT(cache.currentBalance.tokenB,0) ? "yellowBright" : "gray"](
+				`${chalk[BigInt(cache.currentBalance.tokenB) > 0 ? "yellowBright" : "gray"](
 					toDecimal(String(cache.currentBalance.tokenB), tokenB.decimals)
 				)} ${chalk[cache.ui.defaultColor](tokenB.symbol)}`,
 
-				`${chalk[JSBI.GT(cache.lastBalance.tokenB,0) ? "yellowBright" : "gray"](
+				`${chalk[BigInt(cache.lastBalance.tokenB) > 0 ? "yellowBright" : "gray"](
 					toDecimal(String(cache.lastBalance.tokenB), tokenB.decimals)
 				)} ${chalk[cache.ui.defaultColor](tokenB.symbol)}`,
 
-				`${chalk[JSBI.GT(cache.initialBalance.tokenB,0) ? "yellowBright" : "gray"](
+				`${chalk[BigInt(cache.initialBalance.tokenB) > 0 ? "yellowBright" : "gray"](
 					toDecimal(String(cache.initialBalance.tokenB), tokenB.decimals)
 				)} ${chalk[cache.ui.defaultColor](tokenB.symbol)}`,
 
-				`${chalk[JSBI.GT(cache.currentProfit.tokenB,0) ? "greenBright" : "redBright"](
+				`${chalk[cache.currentProfit.tokenB > 0 ? "greenBright" : "redBright"](
 					cache.currentProfit.tokenB.toFixed(2)
 				)} %`,
 				" "

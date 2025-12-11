@@ -4,6 +4,8 @@ const { setTimeout } = require("timers/promises");
 const { balanceCheck } = require("./setup");
 const { checktrans } = require("../utils/transaction.js");
 const promiseRetry = require("promise-retry");
+const { VersionedTransaction } = require("@solana/web3.js");
+const bs58 = require("bs58");
 
 const waitabit = async (ms) => {
 	const mySecondPromise = new Promise(function(resolve,reject){
@@ -14,22 +16,59 @@ const waitabit = async (ms) => {
 	})
   }
 
-const swap = async (jupiter, route) => {
+const swap = async (jupiter, quoteResponse) => {
 	try {
 		const performanceOfTxStart = performance.now();
 		cache.performanceOfTxStart = performanceOfTxStart;
 
-		if (process.env.DEBUG) storeItInTempAsJSON("routeInfoBeforeSwap", route);
+		if (process.env.DEBUG) storeItInTempAsJSON("quoteResponseBeforeSwap", quoteResponse);
 
-		  // pull the trade priority
-		  const priority = typeof cache.config.priority === "number" ? cache.config.priority : 100; //100 BPS default if not set
-		  cache.priority = priority;
+		// pull the trade priority
+		const priority = typeof cache.config.priority === "number" ? cache.config.priority : 100; //100 BPS default if not set
+		cache.priority = priority;
 
-		const { execute } = await jupiter.exchange({
-			routeInfo: route,
-			computeUnitPriceMicroLamports: priority,
+		// Get swap transaction using V6 API
+		const swapResult = await jupiter.swapPost({
+			swapRequest: {
+				quoteResponse,
+				userPublicKey: cache.wallet.publicKey.toBase58(),
+				wrapAndUnwrapSol: cache.wrapUnwrapSOL,
+				computeUnitPriceMicroLamports: priority,
+				prioritizationFeeLamports: 'auto',
+			},
 		});
-		const result = await execute();
+
+		if (process.env.DEBUG) storeItInTempAsJSON("swapResult", swapResult);
+
+		// Deserialize the transaction
+		const swapTransactionBuf = Buffer.from(swapResult.swapTransaction, 'base64');
+		const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+
+		// Sign the transaction
+		transaction.sign([cache.wallet]);
+
+		// Send and confirm the transaction
+		const rawTransaction = transaction.serialize();
+		const txid = await cache.connection.sendRawTransaction(rawTransaction, {
+			skipPreflight: true,
+			maxRetries: 2
+		});
+
+		// Wait for confirmation
+		const latestBlockHash = await cache.connection.getLatestBlockhash();
+		await cache.connection.confirmTransaction({
+			blockhash: latestBlockHash.blockhash,
+			lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+			signature: txid
+		}, 'confirmed');
+
+		// Create result object compatible with old format
+		const result = {
+			txid,
+			inputAmount: quoteResponse.inAmount,
+			outputAmount: quoteResponse.outAmount,
+			error: null
+		};
 
 		if (process.env.DEBUG) storeItInTempAsJSON("result", result);
 
@@ -42,6 +81,13 @@ const swap = async (jupiter, route) => {
 		return [result, performanceOfTx];
 	} catch (error) {
 		console.log("Swap error: ", error);
+		// Return error result in compatible format
+		return [{
+			error: {
+				message: error.message || "Unknown error",
+				code: error.code || null
+			}
+		}, 0];
 	}
 };
 exports.swap = swap;

@@ -2,9 +2,8 @@ const fs = require("fs");
 const chalk = require("chalk");
 const ora = require("ora-classic");
 const bs58 = require("bs58");
-const { Jupiter } = require("@jup-ag/core");
+const { createJupiterApiClient } = require("@jup-ag/api");
 const { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } = require("@solana/web3.js");
-var JSBI = (require('jsbi'));
 var invariant = (require('tiny-invariant'));
 var _Decimal = (require('decimal.js'));
 var _Big = (require('big.js'));
@@ -99,54 +98,17 @@ const setup = async () => {
 		// Set up the RPC connection
 		const connection = new Connection(cache.config.rpc[0]);
 
-		spinner.text = "Loading the Jupiter V4 SDK and getting ready to trade...";
+		spinner.text = "Loading the Jupiter V6 API and getting ready to trade...";
 
-		const jupiter = await Jupiter.load({
-			connection,
-			cluster: cache.config.network,
-			user: wallet,
-			restrictIntermediateTokens: false,
-			shouldLoadSerumOpenOrders: false,
-			wrapUnwrapSOL: cache.wrapUnwrapSOL,
-			ammsToExclude: {
-				'Aldrin': false,
-				'Crema': false,
-				'Cropper': true,
-				'Cykura': true,
-				'DeltaFi': false,
-				'GooseFX': true,
-				'Invariant': false,
-				'Lifinity': false,
-				'Lifinity V2': false,
-				'Marinade': false,
-				'Mercurial': false,
-				'Meteora': false,
-				'Raydium': false,
-				'Raydium CLMM': false,
-				'Saber': false,
-				'Serum': true,
-				'Orca': false,
-				'Step': false, 
-				'Penguin': false,
-				'Saros': false,
-				'Stepn': true,
-				'Orca (Whirlpools)': false,   
-				'Sencha': false,
-				'Saber (Decimals)': false,
-				'Dradex': true,
-				'Balansol': true,
-				'Openbook': false,
-				'Marco Polo': false,
-				'Oasis': false,
-				'BonkSwap': false,
-				'Phoenix': false,
-				'Symmetry': true,
-				'Unknown': true			
-			}
-		});
+		const jupiterQuoteApi = createJupiterApiClient();
+		
+		// Store connection and wallet in cache for later use
+		cache.connection = connection;
+		cache.wallet = wallet;
+		
 		cache.isSetupDone = true;
 		spinner.succeed("Checking to ensure you are ARB ready...\n====================\n");
-		return { jupiter, tokenA, tokenB, wallet };
+		return { jupiter: jupiterQuoteApi, tokenA, tokenB, wallet };
 	} catch (error) {
 		if (spinner)
 			spinner.fail(
@@ -226,24 +188,26 @@ const getInitialotherAmountThreshold = async (
 			color: "magenta",
 		}).start();
 
-		//JSBI AMT to TRADE
-		const amountInJSBI = JSBI.BigInt(amountToTrade);
-
-		// compute routes for the first time
-		const routes = await jupiter.computeRoutes({
-			inputMint: new PublicKey(inputToken.address),
-			outputMint: new PublicKey(outputToken.address),
-			amount: amountInJSBI,
+		// V6 API uses quoteGet to fetch routes
+		const quoteResponse = await jupiter.quoteGet({
+			inputMint: inputToken.address,
+			outputMint: outputToken.address,
+			amount: amountToTrade,
 			slippageBps: 0,
-			forceFetch: true,
 			onlyDirectRoutes: false,
-			filterTopNResult: 1,
+			maxAccounts: 64,
 		});
 
-		if (routes?.routesInfos?.length > 0) spinner.succeed("Routes computed!");
-		else spinner.fail("No routes found. Something is wrong! Check tokens:"+inputToken.address+" "+outputToken.address);
+		if (quoteResponse && quoteResponse.outAmount) {
+			spinner.succeed("Routes computed!");
+		} else {
+			spinner.fail("No routes found. Something is wrong! Check tokens:" + inputToken.address + " " + outputToken.address);
+		}
 
-		return routes.routesInfos[0].otherAmountThreshold;
+		// V6 API returns outAmount directly, calculate the minimum output threshold
+		const outAmount = BigInt(quoteResponse.outAmount);
+		// For compatibility, return the output amount as otherAmountThreshold
+		return outAmount.toString();
 	} catch (error) {
 		if (spinner)
 			spinner.fail(chalk.bold.redBright("Computing routes failed!\n"));
