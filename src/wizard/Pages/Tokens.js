@@ -91,21 +91,7 @@ function Tokens() {
 	}
 
 	useEffect(() => {
-		// check if tokens.json exist in temp directory
-		if (fs.existsSync("./temp/tokens.json")) {
-			try {
-				const tokensFromFile = JSON.parse(fs.readFileSync("./temp/tokens.json"));
-				tokensFromFile?.length > 0 && setTokens(tokensFromFile);
-			} catch (error) {
-				console.error("Error reading cached tokens:", error);
-				// If cached file is corrupted, fetch fresh data
-				fetchTokens();
-			}
-		} else {
-			fetchTokens();
-		}
-
-		function fetchTokens() {
+		const fetchTokens = () => {
 			// Ensure temp directory exists
 			if (!fs.existsSync("./temp")) {
 				fs.mkdirSync("./temp", { recursive: true });
@@ -113,7 +99,7 @@ function Tokens() {
 			
 			axios.get(TOKEN_LIST_URL[network])
 				.then((res) => {
-					if (isMountedRef.current) {
+					if (isMountedRef.current && Array.isArray(res.data)) {
 						setTokens(res.data);
 						// save tokens to tokens.json file
 						fs.writeFileSync(
@@ -130,6 +116,26 @@ function Tokens() {
 						setTokens([]);
 					}
 				});
+		};
+
+		// check if tokens.json exist in temp directory
+		if (fs.existsSync("./temp/tokens.json")) {
+			try {
+				const tokensFromFile = JSON.parse(fs.readFileSync("./temp/tokens.json"));
+				// Validate that tokensFromFile is an array before using it
+				if (Array.isArray(tokensFromFile) && tokensFromFile.length > 0) {
+					setTokens(tokensFromFile);
+				} else {
+					// If cache is not a valid array, fetch fresh data
+					fetchTokens();
+				}
+			} catch (error) {
+				console.error("Error reading cached tokens:", error);
+				// If cached file is corrupted, fetch fresh data
+				fetchTokens();
+			}
+		} else {
+			fetchTokens();
 		}
 	}, []);
 
