@@ -105,7 +105,7 @@ const pingpongStrategy = async (jupiter, tokenA, tokenB) => {
 				}
 
 				//console.log("Setting slippage to "+slippagerevised);
-				route.slippageBps = parseInt(slippagerevised);
+				route.slippageBps = parseInt(slippagerevised, 10);
 		}
 
 		// store max profit spotted
@@ -315,7 +315,7 @@ const arbitrageStrategy = async (jupiter, tokenA) => {
 						slippagerevised = (0.80*slippagerevised).toFixed(3);
 				}
 				//console.log("Setting slippage to "+slippagerevised);
-				route.slippageBps = parseInt(slippagerevised);
+				route.slippageBps = parseInt(slippagerevised, 10);
 		}
 
 		// store max profit spotted

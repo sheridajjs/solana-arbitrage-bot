@@ -84,8 +84,8 @@ const swap = async (jupiter, quoteResponse) => {
 		// Return error result in compatible format
 		return [{
 			error: {
-				message: error.message,
-				code: error.code
+				message: error.message || "Unknown error",
+				code: error.code || null
 			}
 		}, 0];
 	}

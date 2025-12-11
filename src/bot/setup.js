@@ -4,7 +4,6 @@ const ora = require("ora-classic");
 const bs58 = require("bs58");
 const { createJupiterApiClient } = require("@jup-ag/api");
 const { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } = require("@solana/web3.js");
-var JSBI = (require('jsbi'));
 var invariant = (require('tiny-invariant'));
 var _Decimal = (require('decimal.js'));
 var _Big = (require('big.js'));
