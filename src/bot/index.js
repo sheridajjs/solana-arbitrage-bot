@@ -57,36 +57,38 @@ const pingpongStrategy = async (jupiter, tokenA, tokenB) => {
 		const inputToken = cache.sideBuy ? tokenA : tokenB;
 		const outputToken = cache.sideBuy ? tokenB : tokenA;
 		const tokdecimals = cache.sideBuy ? inputToken.decimals : outputToken.decimals;
-		const amountInJSBI = JSBI.BigInt(amountToTrade);
 
-		// check current routes via JUP4 SDK
+		// check current routes via JUP V6 API
 		const performanceOfRouteCompStart = performance.now();
-		const routes = await jupiter.computeRoutes({
-			inputMint: new PublicKey(inputToken.address),
-			outputMint: new PublicKey(outputToken.address),
-			amount: amountInJSBI,
+		const quoteResponse = await jupiter.quoteGet({
+			inputMint: inputToken.address,
+			outputMint: outputToken.address,
+			amount: amountToTrade.toString(),
 			slippageBps: slippage,
-			forceFetch: true,
 			onlyDirectRoutes: false,
-			filterTopNResult: 2,
+			maxAccounts: 64,
 		});
 
-		checkRoutesResponse(routes);
+		// Check if quote response is valid
+		if (!quoteResponse || !quoteResponse.outAmount) {
+			throw new Error("No routes found");
+		}
 
-		// count available routes
-		cache.availableRoutes[cache.sideBuy ? "buy" : "sell"] =
-			routes.routesInfos.length;
+		// count available routes (V6 API returns route plan)
+		cache.availableRoutes[cache.sideBuy ? "buy" : "sell"] = 
+			quoteResponse.routePlan ? quoteResponse.routePlan.length : 1;
 
 		// update status as OK
 		cache.queue[i] = 0;
 
 		const performanceOfRouteComp = performance.now() - performanceOfRouteCompStart;
 
-		// choose first route
-		const route = await routes.routesInfos[0];
+		// V6 API quote response is used directly
+		const route = quoteResponse;
 
 		// calculate profitability
-		const simulatedProfit = calculateProfit(String(baseAmount), await JSBI.toNumber(route.outAmount));
+		const outAmount = BigInt(route.outAmount);
+		const simulatedProfit = calculateProfit(String(baseAmount), outAmount.toString());
 
 		// Alter slippage to be larger based on the profit if enabled in the config
 		// set cache.config.adaptiveSlippage=1 to enable
@@ -105,7 +107,7 @@ const pingpongStrategy = async (jupiter, tokenA, tokenB) => {
 				}
 
 				//console.log("Setting slippage to "+slippagerevised);
-				route.slippageBps = slippagerevised;
+				route.slippageBps = parseInt(slippagerevised);
 		}
 
 		// store max profit spotted
@@ -153,7 +155,7 @@ const pingpongStrategy = async (jupiter, tokenA, tokenB) => {
 					buy: cache.sideBuy,
 					inputToken: inputToken.symbol,
 					outputToken: outputToken.symbol,
-					inAmount: toDecimal(route.amount, inputToken.decimals),
+					inAmount: toDecimal(route.inAmount, inputToken.decimals),
 					expectedOutAmount: toDecimal(route.outAmount, outputToken.decimals),
 					expectedProfit: simulatedProfit,
 					slippage: slippagerevised,
@@ -259,10 +261,6 @@ const arbitrageStrategy = async (jupiter, tokenA) => {
 				: cache.initialBalance["tokenA"];
 		const baseAmount = amountToTrade;
 
-        //BNI AMT to TRADE
-        const amountInJSBI = JSBI.BigInt(amountToTrade);
-        //console.log('Amount to trade:'+amountToTrade);
-
 		// default slippage
 		const slippage = typeof cache.config.slippage === "number" ? cache.config.slippage : 1; // 100 is 0.1%
 
@@ -270,38 +268,38 @@ const arbitrageStrategy = async (jupiter, tokenA) => {
 		const inputToken = tokenA;
 		const outputToken = tokenA;
 
-		// check current routes
+		// check current routes via JUP V6 API
 		const performanceOfRouteCompStart = performance.now();
-		const routes = await jupiter.computeRoutes({
-			inputMint: new PublicKey(inputToken.address),
-			outputMint: new PublicKey(outputToken.address),
-			amount: amountInJSBI,
+		const quoteResponse = await jupiter.quoteGet({
+			inputMint: inputToken.address,
+			outputMint: outputToken.address,
+			amount: amountToTrade.toString(),
 			slippageBps: slippage,
-			feeBps: 0,
-			forceFetch: true,
-		    onlyDirectRoutes: false,
-            filterTopNResult: 2,
-			enforceSingleTx: false,
-			swapMode: 'ExactIn',
+			onlyDirectRoutes: false,
+			maxAccounts: 64,
 		});
 
 		//console.log('Routes Lookup Run for '+ inputToken.address);
-		checkRoutesResponse(routes);
+		// Check if quote response is valid
+		if (!quoteResponse || !quoteResponse.outAmount) {
+			throw new Error("No routes found");
+		}
 
 		// count available routes
 		cache.availableRoutes[cache.sideBuy ? "buy" : "sell"] =
-			routes.routesInfos.length;
+			quoteResponse.routePlan ? quoteResponse.routePlan.length : 1;
 
 		// update status as OK
 		cache.queue[i] = 0;
 
 		const performanceOfRouteComp = performance.now() - performanceOfRouteCompStart;
 
-		// choose first route
-		const route = await routes.routesInfos[0];
+		// V6 API quote response is used directly
+		const route = quoteResponse;
 
 		// calculate profitability
-		const simulatedProfit = calculateProfit(baseAmount, await JSBI.toNumber(route.outAmount));
+		const outAmount = BigInt(route.outAmount);
+		const simulatedProfit = calculateProfit(baseAmount, outAmount.toString());
 		const minPercProfitRnd = getRandomAmt(cache.config.minPercProfit);
 		//console.log('mpp:'+minPercProfitRnd);
 
@@ -318,7 +316,7 @@ const arbitrageStrategy = async (jupiter, tokenA) => {
 						slippagerevised = (0.80*slippagerevised).toFixed(3);
 				}
 				//console.log("Setting slippage to "+slippagerevised);
-				route.slippageBps = slippagerevised;
+				route.slippageBps = parseInt(slippagerevised);
 		}
 
 		// store max profit spotted
@@ -365,7 +363,7 @@ const arbitrageStrategy = async (jupiter, tokenA) => {
 					buy: cache.sideBuy,
 					inputToken: inputToken.symbol,
 					outputToken: outputToken.symbol,
-					inAmount: toDecimal(route.amount, inputToken.decimals),
+					inAmount: toDecimal(route.inAmount, inputToken.decimals),
 					expectedOutAmount: toDecimal(route.outAmount, outputToken.decimals),
 					expectedProfit: simulatedProfit,
 				};

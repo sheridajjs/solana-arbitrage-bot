@@ -6,7 +6,11 @@ const { useContext, useState, useEffect, useRef } = require("react");
 const { default: SelectInput } = require("ink-select-input");
 const chalk = require("chalk");
 const { default: axios } = require("axios");
-const { TOKEN_LIST_URL } = require("@jup-ag/core");
+// Jupiter V6 API uses a direct token list endpoint
+const TOKEN_LIST_URL = {
+	'mainnet-beta': 'https://token.jup.ag/strict',
+	'devnet': 'https://token.jup.ag/devnet-strict'
+};
 const { default: TextInput } = require("ink-text-input");
 const fs = require("fs");
 
